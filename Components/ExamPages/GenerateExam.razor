@@ -1,0 +1,59 @@
+﻿@page "/generateexame"
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager nm
+
+
+
+<h3 class="mb-3 p-3 border rounded text-center bg-light" style="color:navy ;padding:5px ">Generate Exam</h3>
+
+<div class="p-4 mb-5" style="border:5px solid navy ">
+    <EditForm Model="newstudent" OnValidSubmit="AddStudent">
+        <DataAnnotationsValidator />
+        <div>
+            <label style="color:navy" for="exampleInputEmail1" class="form-label">Student Name</label>
+            <InputText @bind-value="newstudent.name" type="text" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" />
+            <ValidationMessage For="@(()=> newstudent.name)" />
+        </div>
+
+        <div>
+            <label style="color:navy" for="ageField" class="form-label">Student Age</label>
+            <InputNumber @bind-value="newstudent.age" class="form-control" id=" ageField" aria-describedby="emailHelp" />
+            <ValidationMessage For="@(()=> newstudent.age)" />
+        </div>
+
+        <div>
+            <label style="color:navy" for="exampleInputEmail1" class="form-label">Number of Questions</label>
+            <InputSelect @bind-Value="number" type="text" class="form-select" id="exampleInputEmail1" aria-describedby="emailHelp" >
+                @foreach (var n in Qnumbers)
+                {
+                    <option value="@n.ToString()">@n</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button style="margin:8px auto ;color:navy" class="btn btn-primary mt-3 bg-light">Generate Exam</button>
+    </EditForm>
+</div>
+@code {
+    Student newstudent = new Student();
+    ExamContext context = new ExamContext();
+    List<int> Qnumbers =new List<int>();
+    int createdID;
+    int number;
+    protected override async Task OnInitializedAsync()
+    {
+        Qnumbers = await context.Questions.Select(q => q.id).ToListAsync();
+    }
+    private async Task AddStudent()
+    {
+        context.Students.Add(newstudent);
+        await context.SaveChangesAsync();
+        createdID = newstudent.id;
+
+        if (newstudent.id > 0) //cheack if created
+            {
+                newstudent = new Student();
+            }
+        nm.NavigateTo($"/showexam/{number}/{createdID}");
+    }
+}

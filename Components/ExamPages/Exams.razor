@@ -1,0 +1,63 @@
+﻿@page "/exams/"
+@inject NavigationManager nm
+
+@using Microsoft.EntityFrameworkCore
+
+<h3 class="mb-3 p-3 border rounded text-center bg-light" style="color:navy ;padding:5px ">All Students Exams</h3>
+
+@if (exams != null)
+{
+    <div class="mb-3 p-3 border rounded bg-light" style="color:navy">
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Student id</th>
+                <th scope="col">Student Name</th>
+                <th scope="col">Score</th>
+                <th scope="col">Go to Exam</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ex in exams)
+            {
+                var totalQuestions = ex.examQuestions.Count;
+                var percentage = (double)ex.score / totalQuestions;
+                var scoreClass = percentage >= 0.6 ? "text-success" : "text-danger";
+
+                <tr>
+                    <td>@ex.StudentID</td>
+                    <td>@ex.Student.name</td>
+                    <td class="@scoreClass">@ex.score / @totalQuestions</td>
+                    <td>
+                        <button style="margin:8px auto ;color:navy" class="btn btn-primary mt-3 bg-light" @onclick="() => gotoDetalis(ex)">Show Exam</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+else
+{
+    <h3>Loading ..... </h3>
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+@code {
+    ExamContext examContext = new ExamContext();
+    List<Exam> exams = new List<Exam>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        exams = await examContext.exams
+            .Include(e => e.examQuestions)
+            .Include(e => e.Student)
+            .ToListAsync();
+    }
+
+    public void gotoDetalis(Exam ex)
+    {
+        nm.NavigateTo($"/viewexam/{ex.id}");
+    }
+}

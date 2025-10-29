@@ -1,0 +1,97 @@
+﻿@page "/viewexam/{examId:int}"
+@using Microsoft.EntityFrameworkCore
+@if (isLoading)
+{
+    <h4>Loading …</h4>
+    <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+}
+else if (notFound)
+{
+    <div class="alert alert-danger">Exam @examId Not Found</div>
+}
+else
+{
+    <div class="mb-3 p-3 border rounded bg-light">
+        <div><b>Exam</b>#@examId</div>
+        <div><b>Student ID:</b> @student?.id</div>
+        <div><b>Student Name:</b> @student?.name</div>
+        <div><b>Date:</b> @examDate?.ToString("yyyy-MM-dd HH:mm")</div>
+    </div>
+
+    @for (int i = 0; i < questions.Count; i++)
+    {
+        var q = questions[i];
+        <h5>@(i + 1). @q.title</h5>
+
+        <ul class="list-group mb-3">
+            @foreach (var c in q.choices)
+            {
+                <li class="list-group-item @(c.isCorrect ? "list-group-item-success" : "")"
+                    style="@(c.isCorrect ? "background:#d1e7dd" : null)">
+                    @c.option
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public int examId { get; set; }
+
+    ExamContext examContext = new ExamContext();
+
+    List<Question> questions = new();
+
+    Student? student;
+
+    DateTime? examDate;
+
+    bool isLoading = true;
+    bool notFound = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        notFound = false;
+
+        var ex = await examContext.exams
+            .FirstOrDefaultAsync(e => e.id == examId);
+
+        if (ex == null)
+        {
+            notFound = true;
+            isLoading = false;
+            return;
+        }
+
+        examDate = ex.creationDate;
+
+        student = await examContext.Students
+            .FirstOrDefaultAsync(s => s.id == ex.StudentID);
+
+        var qidsOrdered = await examContext.ExamQuestions
+            .Where(eq => eq.ExamId == examId)
+            .OrderBy(eq => eq.Order)
+            .Select(eq => eq.QuestionId)
+            .ToListAsync();
+
+        if (qidsOrdered.Count == 0)
+        {
+            questions = new();
+            isLoading = false;
+            return;
+        }
+
+        var qs = await examContext.Questions
+            .Where(q => qidsOrdered.Contains(q.id))
+            .Include(q => q.choices)
+            .AsNoTracking()
+            .ToListAsync();
+
+        questions = qidsOrdered
+            .Join(qs, id => id, q => q.id, (id, q) => q)
+            .ToList();
+
+        isLoading = false;
+    }
+}

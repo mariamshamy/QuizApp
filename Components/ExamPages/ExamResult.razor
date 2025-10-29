@@ -1,0 +1,49 @@
+﻿@page "/examresult/{score:int}/{totalQuestions:int}/{stdID:int}"
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager nm
+
+<h3 class="mb-3 p-3 border rounded text-center bg-light" style="color:navy ;padding:5px ">Exam Result</h3>
+
+<div class="card p-4">
+    <h4 class="card-title">Welcome @student?.name</h4>
+    <p class="card-text">
+        You got <b style="color :navy">@Score</b>/<b style="color: navy">@TotalQuestions</b>
+    </p>
+
+    @if (((double)Score / TotalQuestions) >= 0.9)
+    {
+        <p class="text-success">Great</p>
+    }
+    else if (((double)Score / TotalQuestions) >= 0.8)
+    {
+        <p class="text-info">Very Good</p>
+    }
+    else if (((double)Score / TotalQuestions) >= 0.7)
+    {
+        <p class="text-warning">Good</p>
+    }
+    else
+    {
+        <p class="text-danger">Try Again and improve your Skills.</p>
+    }
+    <button class="btn btn-secondary mt-3" @onclick="GoHome">To Main</button>
+        </div>
+
+@code {
+    [Parameter] public int Score { get; set; }
+    [Parameter] public int TotalQuestions { get; set; }
+    [Parameter] public int stdID { get; set; }
+
+    Student student;
+    ExamContext examContext = new ExamContext();
+
+    protected override async Task OnInitializedAsync()
+    {
+        student = await examContext.Students.FirstOrDefaultAsync(s => s.id == stdID);
+    }
+
+    private void GoHome()
+    {
+        nm.NavigateTo("/generateexame");
+    }
+}

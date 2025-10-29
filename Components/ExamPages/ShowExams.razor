@@ -1,0 +1,131 @@
+﻿@page "/showexam/{count:int}/{stdID:int}"
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager nm
+
+@if (questions is null)
+{
+    <h3>Loading ..... </h3>
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else
+{
+    <div class="mb-3 p-3 border rounded">
+        <div><b style="color :Navy">Student ID:</b> @student?.id</div>
+        <div><b style="color :Navy">Student Name:</b> @student?.name</div>
+    </div>
+
+    @for (int i = 0; i < questions.Count; i++)
+    {
+        var q = questions[i];
+
+        var currentQuestionIndex = i;
+        <div class="card mb-3" >
+            <div class="card-header" style="color :Navy"> Question @(i + 1). @questions.Count</div>
+            <div class="card-body">
+                <h5 class="card-title">@q.title</h5>
+                <div>
+                    @foreach (var c in q.choices)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="question_@i"
+                                   id="choice_@(c.id)"
+                                   value="@c.id"
+                                   @onchange="(e) => selectedChoiceIds[currentQuestionIndex] = int.Parse(e.Value.ToString())" />
+                            <label class="form-check-label" for="choice_@(c.id)">
+                                @c.option
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <button style="margin:8px auto ;color:navy" class="btn btn-primary mt-3 bg-light" @onclick="newExam">Submit</button>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
+    }
+}
+
+@code {
+    [Parameter] public int Count { get; set; }
+    [Parameter] public int stdID { get; set; }
+
+    int[] selectedChoiceIds;
+
+    private Exam ex = new Exam();
+    ExamContext examContext = new ExamContext();
+    List<Question> questions;
+    Student student;
+
+    private string errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        questions = await examContext.Questions
+            .Include(q => q.choices)
+            .OrderBy(x => Guid.NewGuid())
+            .Take(Count)
+            .ToListAsync();
+
+        selectedChoiceIds = new int[questions.Count];
+
+        student = await examContext.Students
+            .FirstOrDefaultAsync(s => s.id == stdID);
+    }
+
+    private async Task newExam()
+    {
+        for (int i = 0; i < selectedChoiceIds.Length; i++)
+        {
+            if (selectedChoiceIds[i] == 0)
+            {
+                errorMessage = "Please answer all questions before submitting.";
+                return;
+            }
+        }
+
+        errorMessage = null;
+
+        int score = 0;
+
+        for (int i = 0; i < questions.Count; i++)
+        {
+            var question = questions[i];
+            var correctChoice = question.choices.FirstOrDefault(c => c.isCorrect);
+            var studentAnswerId = selectedChoiceIds[i];
+
+            Console.WriteLine($"Question {i + 1}: Correct ID: {correctChoice?.id}, Student Answer ID: {studentAnswerId}");
+
+            if (correctChoice != null && studentAnswerId == correctChoice.id)
+            {
+                score++;
+            }
+        }
+
+        ex.creationDate = DateTime.Now;
+        ex.StudentID = stdID;
+        ex.score = score;
+        examContext.exams.Add(ex);
+        await examContext.SaveChangesAsync();
+
+        var links = questions
+            .Select((q, idx) => new ExamQuestions
+                {
+                    ExamId = ex.id,
+                    QuestionId = q.id,
+                    Order = idx + 1
+                })
+            .ToList();
+
+        examContext.ExamQuestions.AddRange(links);
+        await examContext.SaveChangesAsync();
+
+        nm.NavigateTo($"/examresult/{score}/{questions.Count}/{stdID}");
+    }
+}

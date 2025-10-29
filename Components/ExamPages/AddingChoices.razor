@@ -1,0 +1,129 @@
+﻿@page "/addchoice"
+@using Microsoft.EntityFrameworkCore
+
+<h4 class="mb-3 p-3 border rounded bg-light" style="color:navy ">Add Choices</h4>
+
+<div class="p-4 mb-5" style="border:5px solid navy ">
+    <EditForm Model="choices" OnValidSubmit="AddChoices">
+        <DataAnnotationsValidator />
+
+        <div class="mb-4">
+            <label style="color:navy" for="questionSelect" class="form-label">Select Question</label>
+            <InputSelect @bind-Value="selectedQuestionId" class="form-select" id="questionSelect">
+                <option value="0">Select a question</option>
+                @foreach (var q in questions)
+                {
+                    <option value="@q.id">@q.title</option>
+                }
+            </InputSelect>
+        </div>
+
+        <hr class="my-4" />
+        <h5 style="color:navy">Enter Choices</h5>
+        @foreach (var choice in choices)
+        {
+            <div class="d-flex mb-2 align-items-center">
+                <div class="flex-grow-1 me-2">
+                    <InputText @bind-Value="choice.option" class="form-control" placeholder="Choice Text" />
+                </div>
+                <div>Is Correct? </div>
+                <div class="form-check form-switch d-flex align-items-center me-3">
+                    <InputCheckbox @bind-Value="choice.isCorrect" class="form-check-input"></InputCheckbox>
+                </div>
+                <button type="button" class="btn btn-danger" @onclick="() => RemoveChoice(choice)">X</button>
+            </div>
+        }
+        <button type="submit" style="margin:8px auto ;color:navy" class="btn btn-primary mt-3 bg-light">Save Choices</button>
+    </EditForm>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
+    }
+</div>
+
+@code
+{
+    private List<Question> questions = new List<Question>();
+    private int selectedQuestionId;
+    private List<Choice> choices = new List<Choice>();
+    ExamContext context = new ExamContext();
+    String errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        questions = await context.Questions.ToListAsync();
+        AddChoice();
+        AddChoice();
+        AddChoice();
+        AddChoice();
+        AddChoice();
+
+        MessagingCenter.Subscribe<AddingQuestion, Question>(this, "New ques was added", (sender, question) =>
+          {
+              questions.Add(question);
+              InvokeAsync(StateHasChanged);
+          });
+    }
+
+    private void AddChoice()
+    {
+        choices.Add(new Choice());
+    }
+
+    private void RemoveChoice(Choice choiceToRemove)
+    {
+        choices.Remove(choiceToRemove);
+    }
+
+    private async Task AddChoices()
+    {
+        if (selectedQuestionId <= 0)
+        {
+            errorMessage = "Please select a question first.";
+            return;
+        }
+
+        var validChoices = choices.Where(c => !string.IsNullOrEmpty(c.option)).ToList();
+
+        if (!validChoices.Any())
+        {
+            return;
+        }
+
+        // تحقق من وجود إجابة واحدة صحيحة على الأقل
+        if (validChoices.Count(c => c.isCorrect) != 1)
+        {
+            errorMessage = "Please select exactly one correct answer & Enter Value for all options";
+            return;
+        }
+
+        using (var context = new ExamContext())
+        {
+            var questionToUpdate = await context.Questions
+              .Include(q => q.choices)
+              .FirstOrDefaultAsync(q => q.id == selectedQuestionId);
+
+            if (questionToUpdate != null)
+            {
+                // هذا هو السطر المهم الذي تم تعديله
+                // نستخدم قائمة validChoices بدلاً من choices
+                foreach (var choice in validChoices)
+                {
+                    questionToUpdate.choices.Add(choice);
+                }
+
+                await context.SaveChangesAsync();
+
+                // إعادة تهيئة النموذج بعد الحفظ
+                errorMessage = null; // مسح رسالة الخطأ
+                selectedQuestionId = 0;
+                choices.Clear();
+                AddChoice();
+                AddChoice();
+                AddChoice();
+                AddChoice();
+                AddChoice();
+            }
+        }
+    }
+}

@@ -1,0 +1,35 @@
+﻿@page "/addingquestion"
+
+
+<h4 class="mb-3 p-3 border rounded bg-light" style="color:navy ">Adding Question</h4>
+
+<div class="p-4 mb-5" style="border:5px solid DarkSlateBlue ">
+    <EditForm Model="question" OnValidSubmit="Add">
+        <DataAnnotationsValidator />
+        <div>
+            <label style="color:DarkSlateBlue" for="exampleInputEmail1" class="form-label">Question Title</label>
+            <InputText @bind-value="question.title" type="text" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" />
+            <ValidationMessage For="@(()=> question.title)" />
+        </div>
+
+        <button style="margin:8px auto ;color:navy" class="btn btn-primary mt-3 bg-light" onclick="">Add</button>
+
+    </EditForm>
+</div>
+
+@code {
+    Question question = new Question();
+    ExamContext context = new ExamContext();
+
+    private void Add()
+    {
+        context.Questions.Add(question);
+        context.SaveChanges();
+
+        if (question.id > 0) //cheack if created
+        {
+            MessagingCenter.Send(this, "New ques was added", question);
+            question = new Question();
+        }
+    }
+}
